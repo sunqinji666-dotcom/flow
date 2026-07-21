@@ -2,230 +2,62 @@
 
 # Flow for macOS
 
-### One click. Clear status. Private configuration.
+### 一键连接，状态清楚，配置留在本地。
 
-**一个按钮，清楚连接。 · One button, clear connection. · ひとつのボタンで、接続をわかりやすく。**
+**简体中文** · [繁體中文](docs/README.zh-TW.md) · [English](docs/README.en.md) · [日本語](docs/README.ja.md) · [한국어](docs/README.ko.md) · [Español](docs/README.es.md) · [Français](docs/README.fr.md) · [Deutsch](docs/README.de.md) · [Português](docs/README.pt-BR.md) · [Русский](docs/README.ru.md) · [العربية](docs/README.ar.md) · [हिन्दी](docs/README.hi.md) · [Bahasa Indonesia](docs/README.id.md)
 
-[简体中文](docs/README.zh-CN.md) · [English](docs/README.en.md) · [日本語](docs/README.ja.md)
+作者与联系：**Jacksun（孙秦吉）** · [qinji@jack-sun.com](mailto:qinji@jack-sun.com)
 
 </div>
 
-![Flow for macOS hero](assets/flow-hero-v2.png)
+![Flow for macOS 主视觉](assets/flow-hero-v2.png)
 
 <p align="center">
-  <img src="assets/readme-status.png" alt="Flow version 1.1.0, macOS 14+, Apple Silicon, Swift 5.9+, private by default" width="100%">
+  <img src="assets/readme-status.png" alt="Flow 版本、系统支持与隐私默认设置" width="100%">
 </p>
 
 <p align="center">
-  <a href="https://github.com/sunqinji666-dotcom/flow/releases/latest"><img src="assets/readme-release.png" alt="Download Flow v1.1.0" width="340"></a>
-  <a href="https://github.com/sunqinji666-dotcom/flow"><img src="assets/readme-star.png" alt="Star Flow on GitHub" width="340"></a>
+  <a href="https://github.com/sunqinji666-dotcom/flow/releases/latest"><img src="assets/readme-release.png" alt="下载 Flow 最新版本" width="340"></a>
+  <a href="https://github.com/sunqinji666-dotcom/flow"><img src="assets/readme-star.png" alt="在 GitHub 关注 Flow" width="340"></a>
 </p>
 
-<p align="center">
-  <a href="#overview">Overview</a> ·
-  <a href="#how-it-works">How it works</a> ·
-  <a href="#privacy">Privacy</a> ·
-  <a href="#quick-start">Quick start</a> ·
-  <a href="#documentation">Documentation</a>
-</p>
+## 这是什么
 
----
+Flow 是只为 macOS 打造的轻量连接客户端。它把底层核心、节点验证、路由与系统代理放在后台，只把真正重要的信息留在前面：**是否已连接、流量经过哪里、系统代理是否打开、连接是否真实可用。**
 
-<a id="overview"></a>
+它与 NetFlow 是两个独立项目：Flow 面向日常的一键连接；NetFlow 面向更高级的管理需求。
 
-## 01 · Overview / 项目概览 / 概要
+## 工作方式
 
-Flow 是一款只为 macOS 制作的轻量代理客户端。它把 Xray、节点检测、系统代理和路由这些复杂步骤放到后台，把普通人真正关心的信息留在前面：**有没有连上、正在走哪里、系统代理是否开启、连接是否真的工作。**
+![Flow 的本地连接架构](assets/flow-how-it-works.png)
 
-Flow is a focused macOS proxy client that keeps Xray, validation, routing, and system proxy details behind a calm one-button interface.
+1. 读取你本机缓存的节点，或你自行配置的私有订阅地址。
+2. 启动临时本地代理验证实际连通性，而不只是测试端口。
+3. 通过本地核心提供 SOCKS5 与 HTTP 代理。
+4. 由你决定是否启用 macOS 系统代理。
 
-Flow は、Xray・ノード検証・ルーティング・システムプロキシの複雑さを、シンプルな macOS インターフェースの裏側にまとめます。
+## 隐私边界
 
-| **Simple by design** | **Real connection checks** | **Private by default** |
-| --- | --- | --- |
-| 一个核心按钮，连接状态一眼可见。 | 不只测试端口，而是启动临时代理验证节点。 | 公开源码不包含真实节点、UUID 或 token。 |
-| One primary action with visible state. | Nodes are tested through a temporary proxy. | Real credentials stay outside the repository. |
-| 操作はひとつ、状態は明確。 | 一時プロキシで実際の接続を確認。 | 実際の認証情報は公開しません。 |
+![公开源代码与私有连接配置分离](assets/flow-public-private.png)
 
-> **Flow is not NetFlow.** Flow focuses on quick everyday connection. NetFlow is the separate, more advanced management project.
+仓库公开的是界面、应用逻辑、构建脚本和无效示例；真实服务器地址、订阅链接、UUID、密钥与令牌应始终保留在你自己的本机配置中。克隆本仓库不会获得作者的任何私有网络访问权限。
 
----
+## 快速开始
 
-<a id="how-it-works"></a>
+- 从 [Releases](https://github.com/sunqinji666-dotcom/flow/releases/latest) 下载最新 macOS Apple Silicon 版本。
+- 源码运行需要 macOS 14+ 与 Swift 5.9+：`cd Sources/Flow && swift run`。
+- 私有订阅地址由你自行写入本机设置；仓库不包含可用凭据。
 
-## 02 · How it works / 工作方式 / 仕組み
+详细使用、构建与故障定位请阅读 [中文完整说明](docs/README.zh-CN.md)。
 
-![Flow architecture: Mac to Flow to local core to private node](assets/flow-how-it-works.png)
+## 项目资料
 
-```text
-Your Mac / 你的 Mac / あなたの Mac
-              ↓
-       Flow interface
-              ↓
-     Local Xray core
-              ↓
-  Your private node / 私有节点 / プライベートノード
-```
+- [产品设计文档](FLOW_DESIGN_DOC.md)
+- [应用设计基线](FLOW_APP_DESIGN_BASELINE.md)
+- [安全策略](SECURITY.md)
+- [更新记录](CHANGELOG.md)
+- [私有配置示例](PRIVATE_CONFIG.example.md)
 
-| Stage | What Flow does | 大白话解释 |
-| --- | --- | --- |
-| **1 · Load** | Loads cached nodes or your private remote endpoint. | 先把你自己的节点读取进来。 |
-| **2 · Validate** | Starts temporary local proxies and checks real traffic. | 不只看端口通不通，而是真的试着走一遍。 |
-| **3 · Connect** | Starts local SOCKS5 and HTTP listeners through Xray. | 在 Mac 上开两个本地代理入口。 |
-| **4 · Apply** | Optionally configures the macOS system proxy. | 你开启系统代理后，常用软件自动经过 Flow。 |
+## 开源许可
 
-### The four ideas worth knowing
-
-| Concept | Plain explanation | Default |
-| --- | --- | --- |
-| **Node / 节点** | Where your connection exits. / 连接从哪里出去。 | Private configuration |
-| **SOCKS5** | A local proxy port for apps that support it. | `127.0.0.1:10606` |
-| **HTTP Proxy** | A local HTTP/HTTPS proxy endpoint. | `127.0.0.1:10607` |
-| **System Proxy** | Lets compatible macOS apps use Flow automatically. | User-controlled |
-
-Routing modes include **Direct**, **Bypass Mainland China**, **Bypass LAN**, and **Global Proxy**. The default source setting is **Bypass Mainland China**.
-
----
-
-<a id="privacy"></a>
-
-## 03 · Privacy boundary / 隐私边界 / プライバシー境界
-
-![Public source code and private connection configuration are separated](assets/flow-public-private.png)
-
-The repository is public; your connection details should not be.
-
-| Safe to publish | Keep private |
-| --- | --- |
-| SwiftUI interface and application logic | Real server IP addresses or private domains |
-| Build scripts and design documents | UUID, Reality public key, shortId |
-| Placeholder node structures | Subscription URLs and access tokens |
-| Credential-free images and documentation | `.env`, SSH, Cookie, Keychain data |
-
-The public source intentionally uses unusable placeholders:
-
-```text
-example.com
-00000000-0000-0000-0000-000000000000
-REPLACE_WITH_PRIVATE_REALITY_PUBLIC_KEY
-```
-
-This separation is deliberate: cloning the source does **not** grant access to the author's private network configuration.
-
----
-
-<a id="quick-start"></a>
-
-## 04 · Quick start / 快速开始 / クイックスタート
-
-### Download
-
-The latest public build is available on the [Releases page](https://github.com/sunqinji666-dotcom/flow/releases/latest). The macOS arm64 package includes the application and Xray runtime, but no private node credentials.
-
-### Run from source
-
-Requirements: macOS 14+, Swift 5.9+.
-
-```bash
-cd Sources/Flow
-swift run
-```
-
-### Configure your private endpoint
-
-```bash
-defaults write com.jacksun.flow FlowRemoteNodesURL "https://your-private-domain.example/flow/nodes.json"
-```
-
-Remove the local setting:
-
-```bash
-defaults delete com.jacksun.flow FlowRemoteNodesURL
-```
-
-### Build the app
-
-```bash
-FLOW_CORE_SRC="/your/local/path/Resources/Cores" \
-FLOW_GEO_SRC="/your/local/path/routing-data" \
-./Scripts/build_app.sh
-```
-
-Output:
-
-```text
-build-output/Flow.app
-```
-
----
-
-<a id="documentation"></a>
-
-## 05 · Documentation / 完整文档 / ドキュメント
-
-| Language | Complete guide | 内容 |
-| --- | --- | --- |
-| 🇨🇳 **简体中文** | [阅读中文完整说明](docs/README.zh-CN.md) | 产品概念、界面、配置、安全、构建与故障定位 |
-| 🇺🇸 **English** | [Read the complete English guide](docs/README.en.md) | Product model, interface, setup, privacy, build, troubleshooting |
-| 🇯🇵 **日本語** | [日本語の完全ガイドを読む](docs/README.ja.md) | 製品概要、画面、設定、プライバシー、ビルド、問題の切り分け |
-
-Additional project documents:
-
-- [Product design document](FLOW_DESIGN_DOC.md)
-- [Application design baseline](FLOW_APP_DESIGN_BASELINE.md)
-- [Security policy](SECURITY.md)
-- [Changelog](CHANGELOG.md)
-- [Private configuration example](PRIVATE_CONFIG.example.md)
-
----
-
-## 06 · Project structure / 项目结构 / 構成
-
-```text
-Flow/
-├── Sources/Flow/
-│   ├── FlowApp.swift          Window, menu bar, app lifecycle
-│   ├── ContentView.swift      Main UI, settings, node picker
-│   ├── AppState.swift         Validation, Xray, proxy, traffic state
-│   └── Package.swift          Swift Package configuration
-├── Scripts/                   Build and README asset scripts
-├── assets/                    App icon and raster documentation art
-├── docs/                      Chinese, English, and Japanese guides
-├── SECURITY.md                Public/private boundary
-├── CHANGELOG.md               Version history
-└── VERSION                    Single source of release version
-```
-
----
-
-## 07 · Release status / 版本状态 / リリース情報
-
-| Item | Current value |
-| --- | --- |
-| Application version | `1.1.0` |
-| Build number | `2` |
-| Platform | macOS 14+ |
-| Public architecture | Apple Silicon (`arm64`) |
-| Swift tools | 5.9+ |
-| Runtime core | Xray, supplied during packaging |
-| Repository scope | Flow for macOS only |
-
----
-
-<div align="center">
-
-## If Flow feels useful, give it a Star ⭐
-
-Stars make the project easier to find and show that clear, privacy-conscious software is worth building.
-
-[Download the latest release](https://github.com/sunqinji666-dotcom/flow/releases/latest) · [Star the repository](https://github.com/sunqinji666-dotcom/flow) · [View source](Sources/Flow)
-
-**Flow makes the connection understandable—not more complicated.**
-
-</div>
-
----
-
-## License
-
-No open-source license has been selected yet. The public repository is available for personal project presentation and continued development. Contact the author before redistribution or commercial use.
+本项目采用 [MIT License](LICENSE) 开源。欢迎使用、学习、修改与再发布；请保留原始许可证与版权声明。

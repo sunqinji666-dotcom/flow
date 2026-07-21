@@ -1,5 +1,7 @@
 # Flow for macOS：中文完整说明
 
+作者与联系：**Jacksun（孙秦吉）** · [qinji@jack-sun.com](mailto:qinji@jack-sun.com)
+
 [返回项目首页](../README.md) · [English](README.en.md) · [日本語](README.ja.md) · [最新版本](https://github.com/sunqinji666-dotcom/flow/releases/latest)
 
 ## 目录

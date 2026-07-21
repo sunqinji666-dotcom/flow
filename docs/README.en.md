@@ -1,5 +1,7 @@
 # Flow for macOS: Complete English Guide
 
+Created by **Jacksun (孙秦吉)** · [qinji@jack-sun.com](mailto:qinji@jack-sun.com)
+
 [Project home](../README.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [Latest release](https://github.com/sunqinji666-dotcom/flow/releases/latest)
 
 ## Contents
