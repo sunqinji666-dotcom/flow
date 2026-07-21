@@ -713,7 +713,6 @@ final class AppState: ObservableObject {
             bundleResource.appendingPathComponent("xray"),
             Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/bin/xray/xray"),
             Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS/bin/xray"),
-            URL(fileURLWithPath: "/Users/jacksun/Documents/NetFlow/NetFlow/Resources/Cores/xray/xray"),
             URL(fileURLWithPath: "/usr/local/bin/xray"),
             URL(fileURLWithPath: "/opt/homebrew/bin/xray"),
             URL(fileURLWithPath: "/Applications/v2rayN.app/Contents/MacOS/bin/xray/xray")
