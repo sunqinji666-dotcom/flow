@@ -1,0 +1,36 @@
+{
+  "name": "flow",
+  "version": "1.0.0",
+  "description": "Flow - Cross-platform proxy client",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder -w"
+  },
+  "build": {
+    "appId": "com.jacksun.flow",
+    "productName": "Flow",
+    "win": {
+      "target": "nsis",
+      "icon": "assets/flow.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "extraResources": [
+      {
+        "from": "xray-core",
+        "to": "xray-core"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "socks-proxy-agent": "^10.1.0"
+  }
+}

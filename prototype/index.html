@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flow UI Prototype</title>
+  <style>
+    :root{
+      --bg:#10141B;
+      --panel:#18202B;
+      --panel2:#151B24;
+      --line:#2B3A4B;
+      --gold:#F3B85B;
+      --green:#45D6FF;
+      --green2:#0D3146;
+      --text:#F2F7FF;
+      --muted:#71859B;
+      --sub:#B8C8D8;
+      --danger:#ff6b5f;
+      --rocket:#F8D47A;
+      --flame1:#FF7A35;
+      --flame2:#FFE18A;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:#0b0b0c;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Helvetica,Arial,sans-serif;color:var(--text)}
+    body{display:grid;place-items:center;padding:24px}
+    .app{
+      width:360px; height:640px; background:
+        radial-gradient(circle at 50% 22%,color-mix(in srgb, var(--green) 18%, transparent),transparent 32%),
+        radial-gradient(circle at 18% 8%,rgba(255,255,255,.07),transparent 20%),
+        linear-gradient(160deg,color-mix(in srgb, var(--bg) 88%, #20384F),var(--bg) 54%,#0B0E14);
+      border:1px solid color-mix(in srgb, var(--line) 78%, white); border-radius:28px; overflow:hidden; position:relative;
+      box-shadow:0 34px 90px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.45);
+    }
+    .traffic{position:absolute;inset:0;pointer-events:none;opacity:.18;background:
+      radial-gradient(circle at 10% 15%,color-mix(in srgb, var(--gold) 18%, transparent),transparent 18%),
+      radial-gradient(circle at 88% 10%,color-mix(in srgb, var(--green) 18%, transparent),transparent 20%),
+      linear-gradient(120deg,rgba(255,255,255,.06),transparent 40%);
+    }
+    .chrome{height:38px;display:flex;align-items:center;gap:10px;padding-left:14px;position:relative;z-index:2}
+    .dot{width:12px;height:12px;border-radius:50%}.red{background:#ff5f57}.yellow{background:#ffbd2e}.gray{background:#3c3c41}
+    .content{height:calc(100% - 38px);padding:12px 26px 22px;display:flex;flex-direction:column;align-items:center;gap:14px;position:relative;z-index:1}
+    .topline{width:100%;display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:11px;letter-spacing:.04em}
+    .brand{font-size:19px;font-weight:850;letter-spacing:.16em;font-style:italic;line-height:1;background:linear-gradient(110deg,var(--text),color-mix(in srgb,var(--green) 45%,var(--text)),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 24px color-mix(in srgb,var(--green) 14%,transparent)}
+    .top-actions{display:flex;align-items:center;gap:8px}.icon-btn{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.12);color:var(--sub);cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 8px 22px rgba(0,0,0,.12);font-size:15px}.icon-btn:hover{color:var(--text);border-color:color-mix(in srgb,var(--green) 32%,white)}
+    .badge{display:flex;align-items:center;gap:6px;padding:6px 11px;background:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.035));border:1px solid rgba(255,255,255,.12);border-radius:99px;color:var(--sub);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 8px 22px rgba(0,0,0,.12)}
+    .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green)}
+    .ring-wrap{position:relative;width:188px;height:188px;margin-top:2px;display:grid;place-items:center}
+    .pulse{position:absolute;inset:0;border:3px solid color-mix(in srgb, var(--green) 28%, transparent);border-radius:50%;animation:pulse 1.8s ease-in-out infinite alternate;box-shadow:inset 0 0 28px color-mix(in srgb, var(--green) 10%, transparent),0 0 32px color-mix(in srgb, var(--green) 10%, transparent)}
+    .launch{position:absolute;inset:0;pointer-events:none;display:grid;place-items:center;z-index:4}
+    .rocket-launch{position:absolute;top:-16px;left:50%;width:34px;height:46px;transform:translateX(-50%);animation:lift 1.8s ease-in-out infinite alternate;filter:drop-shadow(0 0 16px color-mix(in srgb, var(--rocket) 55%, transparent))}
+    .rocket-body{position:absolute;left:8px;top:0;width:18px;height:31px;background:radial-gradient(circle at 35% 20%,#fff,transparent 22%),linear-gradient(180deg,#FFF7DA 0%,var(--rocket) 58%,#D88A32 100%);border-radius:55% 55% 42% 42%;border:1px solid rgba(255,255,255,.72);box-shadow:inset 0 1px 3px rgba(255,255,255,.7), inset 0 -5px 8px rgba(151,80,28,.35)}
+    .rocket-window{position:absolute;left:13px;top:9px;width:8px;height:8px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#DDF8FF,#052433 70%);border:1px solid rgba(255,255,255,.72);box-shadow:0 0 8px color-mix(in srgb,var(--green) 60%,transparent)}
+    .fin{position:absolute;top:22px;width:9px;height:13px;background:linear-gradient(180deg,#FFE18A,#F09A3B);border-radius:8px 8px 2px 2px;box-shadow:inset 0 1px 2px rgba(255,255,255,.5)}.fin.left{left:3px;transform:rotate(-28deg)}.fin.right{right:3px;transform:rotate(28deg)}
+    .flame{position:absolute;left:50%;top:30px;transform:translateX(-50%);width:14px;height:30px;background:linear-gradient(180deg,#fff6b8,var(--flame2) 28%,var(--flame1) 68%,transparent);border-radius:50% 50% 50% 50%;filter:drop-shadow(0 0 12px var(--flame1));animation:flame .22s ease-in-out infinite alternate}
+    .exhaust{position:absolute;top:30px;left:50%;width:46px;height:92px;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 0%,color-mix(in srgb, var(--flame1) 30%, transparent),color-mix(in srgb, var(--green) 16%, transparent) 42%,transparent 70%);filter:blur(8px);opacity:.58;animation:exhaust 1.2s ease-in-out infinite alternate}
+    .speed-caption{display:none}
+    .circle{position:relative;z-index:2;width:148px;height:148px;border-radius:50%;background:radial-gradient(circle at 38% 25%,rgba(255,255,255,.18),transparent 20%),linear-gradient(155deg,color-mix(in srgb,var(--green2) 82%,white),var(--green2) 58%,#071520);border:6px solid var(--green);box-shadow:0 0 38px color-mix(in srgb, var(--green) 28%, transparent), inset 0 2px 12px rgba(255,255,255,.16), inset 0 -14px 28px rgba(0,0,0,.28);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:.18s ease}
+    .circle:active{transform:scale(.96)}
+    .speed{position:relative;z-index:3;font-size:40px;line-height:1;font-weight:800;color:var(--green);letter-spacing:-.06em;font-variant-numeric:tabular-nums}
+    .unit{position:relative;z-index:3;font-size:14px;font-weight:800;color:color-mix(in srgb,var(--green) 78%,white);margin-top:8px}
+    .circle.off{background:#1E1E22;border:3px solid rgba(212,168,83,.58);box-shadow:none}.circle.off .speed{font-family:Georgia,serif;color:var(--gold);letter-spacing:0;font-size:48px}.circle.off .unit{display:none}
+    @keyframes pulse{from{transform:scale(.98);opacity:.9}to{transform:scale(1.08);opacity:.38}}
+    @keyframes lift{from{transform:translateX(-50%) translateY(5px)}to{transform:translateX(-50%) translateY(-6px)}}
+    @keyframes flame{from{height:22px;opacity:.78}to{height:31px;opacity:1}}
+    @keyframes exhaust{from{transform:translateX(-50%) scaleY(.86);opacity:.45}to{transform:translateX(-50%) scaleY(1.12);opacity:.76}}
+    .node{text-align:center;margin-top:2px}.node-name{font-size:23px;font-weight:800;letter-spacing:-.03em}.node-sub{margin-top:6px;color:var(--muted);font-size:14px;font-weight:650}.node-sub span{color:#7f7a73}
+    .state-row{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px}.pill{height:34px;border:1px solid var(--line);background:var(--panel2);border-radius:99px;display:flex;align-items:center;justify-content:center;gap:7px}.pill label{font-size:10px;color:var(--muted)}.pill b{font-size:12px;color:#cdefd4;font-variant-numeric:tabular-nums}.pill.off b{color:var(--sub)}
+    .stats{width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:linear-gradient(160deg,color-mix(in srgb,var(--panel2) 92%,white),var(--panel2));border:1px solid color-mix(in srgb,var(--line) 82%,white);border-radius:13px;padding:10px 6px;text-align:center}.stat label{display:block;font-size:10px;color:var(--muted);margin-bottom:5px}.stat b{display:block;font-size:13px;color:var(--gold);text-shadow:0 0 18px color-mix(in srgb,var(--gold) 18%,transparent);font-variant-numeric:tabular-nums;white-space:nowrap}.stat small{display:block;font-size:9px;color:#504c47;margin-top:4px}
+    .precision{width:100%;border:1px solid color-mix(in srgb,var(--gold) 28%,transparent);background:linear-gradient(145deg,color-mix(in srgb,var(--gold) 10%,transparent),color-mix(in srgb,var(--panel) 74%,transparent));border-radius:15px;padding:10px 12px;color:color-mix(in srgb,var(--gold) 68%,var(--sub));font-size:11px;line-height:1.45;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}.precision strong{color:color-mix(in srgb,var(--gold) 86%,white);font-weight:800}
+    .gear{margin-top:auto;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--muted);font-size:24px;cursor:pointer;transition:.15s;z-index:7;background:rgba(20,20,22,.72);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(14px)}.gear:hover{background:rgba(255,255,255,.07);color:var(--sub)}
+    .settings{position:absolute;left:26px;right:26px;bottom:22px;background:rgba(30,30,34,.96);border:1px solid var(--line);border-radius:18px;padding:15px 16px;display:flex;gap:12px;flex-direction:column;z-index:6;box-shadow:0 22px 60px rgba(0,0,0,.48);backdrop-filter:blur(18px);opacity:0;transform:translateY(18px) scale(.98);pointer-events:none;transition:.2s ease}.settings.show{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}.line{display:flex;align-items:center;justify-content:space-between;color:var(--sub);font-size:12px}.mono{font-family:"SF Mono",Menlo,monospace;background:#29292d;border:1px solid #3b3b40;padding:4px 10px;border-radius:3px;color:#eee;min-width:72px;text-align:center}.hint{text-align:center;color:#56514b;font-size:10px;line-height:1.45;margin-top:2px}
+    .scrim{position:absolute;inset:0;background:rgba(0,0,0,.34);z-index:5;opacity:0;pointer-events:none;transition:.2s ease}.scrim.show{opacity:1;pointer-events:auto}
+    .sheet{position:absolute;left:20px;right:20px;bottom:20px;z-index:8;background:rgba(30,30,34,.98);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:0 24px 70px rgba(0,0,0,.55);backdrop-filter:blur(20px);opacity:0;transform:translateY(20px) scale(.98);pointer-events:none;transition:.2s ease}.sheet.show{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}.sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.sheet-title{font-size:15px;font-weight:800}.close{border:0;background:#2a2a2e;color:#aaa;border-radius:50%;width:26px;height:26px;cursor:pointer}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.tab{border:1px solid var(--line);background:#19191c;color:var(--sub);border-radius:11px;padding:9px;font-size:12px;cursor:pointer}.tab.active{color:var(--gold);border-color:rgba(212,168,83,.35);background:rgba(212,168,83,.07)}.field{background:#171719;border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px}.field label{display:block;color:var(--muted);font-size:10px;margin-bottom:7px}.field .value{color:#ddd;font-family:"SF Mono",Menlo,monospace;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.btnrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.action{border:0;border-radius:12px;padding:10px;background:var(--gold);color:#18130a;font-weight:800;cursor:pointer}.secondary{background:#29292d;color:#ddd}.mini-list{display:flex;flex-direction:column;gap:8px}.node-item{display:flex;justify-content:space-between;align-items:center;background:#171719;border:1px solid var(--line);border-radius:12px;padding:10px 11px}.node-item b{font-size:12px}.node-item span{font-size:10px;color:var(--muted)}.core-card{border:1px solid rgba(52,199,89,.22);background:rgba(52,199,89,.045);border-radius:13px;padding:12px;margin-bottom:10px}.core-card b{display:block;color:#cdefd4;font-size:13px}.core-card span{display:block;color:#66806c;font-size:10px;margin-top:5px}.controls{position:absolute;right:-230px;top:0;width:210px;color:#ddd;font-size:13px}.controls button{width:100%;margin-bottom:8px;padding:10px;border:0;border-radius:10px;background:#242428;color:#eee;cursor:pointer}.controls button:hover{background:#303036}.controls p{color:#888;line-height:1.45}
+
+
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="traffic"></div>
+    <div class="scrim" id="scrim"></div>
+    <div class="chrome"><i class="dot red"></i><i class="dot yellow"></i><i class="dot gray"></i></div>
+    <section class="content">
+      <div class="topline"><div class="brand">Flow</div><div class="top-actions"><span class="badge"><i class="status-dot"></i><span id="topStatus">真实统计中</span></span></div></div>
+      <div class="ring-wrap">
+        <div class="pulse" id="pulse"></div>
+        <div class="launch" id="launch"><div class="rocket-launch"><i class="flame"></i><i class="fin left"></i><i class="fin right"></i><i class="rocket-body"></i><i class="rocket-window"></i></div><div class="exhaust"></div></div>
+        <div class="speed-caption" id="speedCaption">LAUNCHING</div>
+        <button class="circle" id="circle" aria-label="连接按钮">
+          <div class="speed" id="speed">11.3</div><div class="unit">MB/s</div>
+        </button>
+      </div>
+      <div class="node"><div class="node-name">🌐 示例节点</div><div class="node-sub">example.com <span>·</span> — ms <span>·</span> 局域网共享</div></div>
+      <div class="state-row"><div class="pill" id="statusPill"><i class="status-dot"></i><label>状态</label><b id="statusText">已连接</b></div><div class="pill"><label>时长</label><b id="duration">00:14</b></div></div>
+      <div class="stats"><div class="stat"><label>本次</label><b id="session">86.4 MB</b><small>Xray counter</small></div><div class="stat"><label>今日</label><b id="today">1.26 GB</b><small>真实增量</small></div><div class="stat"><label>累计</label><b id="total">8.92 GB</b><small>本机记录</small></div></div>
+      <div class="precision"><strong>精确模式：</strong>流量来自 Xray Stats API。拿不到真实数据时显示「—」，不做模拟。</div>
+      <button class="gear" id="gear">⚙︎</button>
+      <div class="settings" id="settings">
+        <div class="line"><span>SOCKS5</span><span class="mono">10808</span></div>
+        <div class="line"><span>HTTP</span><span class="mono">10809</span></div>
+        <div class="line"><span>节点来源</span><button class="tab active" style="width:118px;padding:7px" id="nodesBtn">节点管理</button></div>
+        <div class="line"><span>Xray 内核</span><button class="tab" style="width:118px;padding:7px" id="coreBtn">版本更新</button></div>
+        <div class="hint">Mac 本机：127.0.0.1:10809 / 10808<br>手机同 WiFi：填这台 Mac 的局域网 IP</div>
+      </div>
+      <div class="sheet" id="managerSheet">
+        <div class="sheet-head"><div class="sheet-title">节点管理</div><button class="close" id="closeSheet">×</button></div>
+        <div class="tabs"><button class="tab active" id="tabSub">订阅</button><button class="tab" id="tabManual">手动导入</button></div>
+        <div id="subPanel">
+          <div class="field"><label>订阅地址</label><div class="value">https://your-server.com/api/nodes</div></div>
+          <div class="mini-list"><div class="node-item"><div><b>🌐 443-dtfnwuzy</b><br><span>来自：内置节点 · 95ms</span></div><span>已选</span></div><div class="node-item"><div><b>远程订阅</b><br><span>支持 VLESS / VMess / Trojan / SS 链接解析</span></div><span>待配置</span></div></div>
+          <div class="btnrow"><button class="action secondary">粘贴订阅</button><button class="action">更新订阅</button></div>
+        </div>
+        <div id="manualPanel" style="display:none">
+          <div class="field"><label>手动链接</label><div class="value">vless://cf687328...#443-dtfnwuzy</div></div>
+          <div class="btnrow"><button class="action secondary">从剪贴板读取</button><button class="action">导入节点</button></div>
+          <div class="hint">导入后会先校验协议字段，再保存到本机节点列表。</div>
+        </div>
+      </div>
+      <div class="sheet" id="coreSheet">
+        <div class="sheet-head"><div class="sheet-title">Xray 内核更新</div><button class="close" id="closeCore">×</button></div>
+        <div class="core-card"><b>当前版本：Xray 26.6.1</b><span>darwin/arm64 · 内置在 Flow.app</span></div>
+        <div class="field"><label>更新来源</label><div class="value">github.com/XTLS/Xray-core/releases</div></div>
+        <div class="btnrow"><button class="action secondary">检查更新</button><button class="action">下载并替换</button></div>
+        <div class="hint">更新前自动备份旧内核；失败则回滚，不影响当前节点配置。</div>
+      </div>
+    </section>
+  </main>
+  <aside class="controls"><button id="toggle">切换连接/断开</button><button id="trafficBtn">模拟真实流量增长</button><p>这是网页原型，只用于调 UI。真正 App 里流量必须接 Xray Stats API。</p></aside>
+<script>
+let connected=true, seconds=14, session=86.4, today=1.26*1024, total=8.92*1024;
+const $=id=>document.getElementById(id);
+function fmtMB(mb){return mb>=1024?(mb/1024).toFixed(2)+' GB':mb.toFixed(1)+' MB'}
+function render(){
+ $('statusText').textContent=connected?'已连接':'未连接'; $('topStatus').textContent=connected?'真实统计中':'准备就绪';
+ $('circle').classList.toggle('off',!connected); $('pulse').style.display=connected?'block':'none'; $('launch').style.display=connected?'grid':'none';
+ $('speed').textContent=connected?'11.3':'连'; $('duration').textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
+ $('session').textContent=connected?fmtMB(session):'—'; $('today').textContent=fmtMB(today); $('total').textContent=fmtMB(total);
+}
+$('gear').onclick=()=>{ $('settings').classList.toggle('show'); $('scrim').classList.toggle('show'); };
+$('scrim').onclick=()=>{ $('settings').classList.remove('show'); $('managerSheet').classList.remove('show'); $('coreSheet').classList.remove('show'); $('scrim').classList.remove('show'); };
+$('toggle').onclick=()=>{connected=!connected;if(connected)seconds=0;render()};
+$('circle').onclick=()=> $('toggle').click();
+$('trafficBtn').onclick=()=>{if(connected){session+=37.2;today+=37.2;total+=37.2;seconds+=8;render()}};
+function showSheet(id){ $('settings').classList.remove('show'); $('managerSheet').classList.remove('show'); $('coreSheet').classList.remove('show'); $('scrim').classList.add('show'); $(id).classList.add('show'); }
+$('nodesBtn').onclick=()=>showSheet('managerSheet'); $('coreBtn').onclick=()=>showSheet('coreSheet');
+$('closeSheet').onclick=()=>{ $('managerSheet').classList.remove('show'); $('scrim').classList.remove('show'); };
+$('closeCore').onclick=()=>{ $('coreSheet').classList.remove('show'); $('scrim').classList.remove('show'); };
+$('tabSub').onclick=()=>{ $('subPanel').style.display='block'; $('manualPanel').style.display='none'; $('tabSub').classList.add('active'); $('tabManual').classList.remove('active'); };
+$('tabManual').onclick=()=>{ $('subPanel').style.display='none'; $('manualPanel').style.display='block'; $('tabManual').classList.add('active'); $('tabSub').classList.remove('active'); };
+setInterval(()=>{if(connected){seconds++; if(seconds%3===0){session+=11.3*3;today+=11.3*3;total+=11.3*3} render()}},1000);
+render();
+</script>
+</body>
+</html>
