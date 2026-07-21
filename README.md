@@ -1,5 +1,7 @@
 <div align="center">
 
+![flow project visual](docs/assets/flow-hero.png)
+
 # Flow for macOS
 
 ### 一键连接，状态清楚，配置留在本地。
