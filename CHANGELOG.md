@@ -6,6 +6,9 @@
 - 移除 Android、Windows、Electron 和 prototype 目录
 - 明确与 NetFlow 的边界
 - 保留 SwiftUI 源码、构建脚本、图标和安全说明
+- 重构 GitHub 首页的信息层级与视觉导航
+- 增加中文、英文、日文三套完整说明
+- 增加本地 PNG 版本状态、下载和 Star 入口
 
 ## v1.0.0 — 2026-07-21
 
