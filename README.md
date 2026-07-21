@@ -1,39 +1,35 @@
-# Flow
+# Flow for macOS
 
-> 点一下，连接就开始流动。
+> 一个按钮，连接或断开。
 
-Flow 是一个给普通人用的轻量代理客户端：界面只有一个核心动作——连接 / 断开。它把 Xray 的复杂配置藏在后面，让你不用先学一堆网络术语，也能看懂现在是不是连上了、走的是哪个节点、局域网端口是多少。
+Flow 是一款只为 macOS 做的轻量代理客户端。它不想做成复杂的“网络控制台”，也不把 Android、Windows 或其他实验版本混在这里。打开窗口，看到一个按钮；需要连接时点一下，需要停止时再点一下。
 
 ![Flow concept](assets/flow-concept.png)
 
-## 它解决什么问题？
+## Flow 是什么？
 
-很多代理工具功能很全，但第一次打开就像驾驶舱：按钮多、名词多、设置也多。Flow 的思路相反：
+Flow 把 Xray 放在后台，把普通人真正关心的事情放在前面：
 
-- 打开以后，先看到一个大按钮
-- 点一下，启动本地代理和系统代理
-- 再点一下，停止连接
-- 需要换节点、改端口时，再进入设置
+- 现在有没有连上？
+- 当前用的是哪个节点？
+- 系统代理有没有打开？
+- 本地端口是多少？
 
-简单说，就是把“能不能用”放在第一位，把“高级设置”放在第二位。
+高级配置仍然存在，但不会一打开就把你淹没在名词里。
 
-## 它是怎么工作的？
+## 工作方式
 
 ```text
-你的设备 → Flow 小界面 → 本地 SOCKS5 / HTTP 端口 → Xray → 你的节点
-                                      └→ 局域网设备也可以按需使用
+macOS → Flow 界面 → 本地 SOCKS5 / HTTP 端口 → Xray → 私有节点
 ```
 
-Flow 目前包含几个平台方向：
+同一 Wi‑Fi 下，其他设备也可以按需使用 Mac 提供的代理端口。
 
-- macOS：SwiftUI 菜单栏 / 窗口客户端
-- Windows：原生 WPF 客户端和 Electron 实验版本
-- Android：Jetpack Compose 客户端实验版本
-- prototype：用于讨论界面和交互的静态原型
+## 安全边界
 
-## 安全说明
+这个公开仓库只保存程序源码和示例配置，不保存真实节点信息。真实 IP、UUID、Reality 公钥、订阅地址和 token 都应该放在本地私有配置中。
 
-这个公开仓库故意不包含真实服务器、UUID、Reality 公钥、订阅 token 或本地认证信息。源码里的节点只是示例占位符：
+源码里的默认节点是占位符：
 
 ```text
 example.com
@@ -41,9 +37,13 @@ example.com
 REPLACE_WITH_PRIVATE_REALITY_PUBLIC_KEY
 ```
 
-你自己的节点请放在本地配置或私有服务里，不要直接提交到公开仓库。远程节点地址可以通过 `FlowRemoteNodesURL`（macOS）或 `FLOW_REMOTE_NODES_URL`（Windows Electron / WPF）注入。
+配置远程节点地址：
 
-## macOS：本地运行
+```bash
+defaults write com.jacksun.flow FlowRemoteNodesURL "https://你的私有域名/flow/nodes.json"
+```
+
+## 本地运行
 
 要求：macOS 14+、Swift 5.9+。
 
@@ -52,44 +52,36 @@ cd Sources/Flow
 swift run
 ```
 
-## macOS：打包 `.app`
+## 打包 App
 
 ```bash
 ./Scripts/build_app.sh
 ```
 
-如果要把 Xray core 放进应用包，请在本地设置路径，不要把私有节点配置一起提交：
+如果要把 Xray core 放进应用包，在本机传入路径：
 
 ```bash
 FLOW_CORE_SRC="/你的本地路径/Resources/Cores" ./Scripts/build_app.sh
 ```
 
-构建结果会在 `build-output/Flow.app`。
-
-## 端口概念，用大白话说
-
-- SOCKS5：给支持代理设置的软件用
-- HTTP：给浏览器、手机或局域网设备用
-- 系统代理：让 macOS 里遵守系统代理的应用自动走 Flow
-- 局域网共享：同一 Wi‑Fi 下的其他设备可以手动填写这台 Mac 的局域网 IP 和端口
+构建结果：`build-output/Flow.app`
 
 ## 当前版本
 
-`v1.0.0` · 首次整理发布版
+`v1.1.0` · 纯 macOS 整理版
 
-这版的重点是把跨平台源码、设计文档和安全的公开配置整理到一起。它是可继续开发的源码版，不代表所有平台都已经达到同样成熟度。
+这一版明确只维护 macOS Flow，不再把 NetFlow 或其他平台实验代码放进来。
 
-## 目录速览
+## 目录
 
 ```text
-Sources/Flow/       macOS SwiftUI 主程序
-windows/            Windows WPF 版本
-windows-electron/   Windows Electron 实验版本
-android/            Android 实验版本
-prototype/          界面原型
-Scripts/            构建脚本
+Sources/Flow/       SwiftUI 主程序
+Scripts/            macOS 构建脚本
+assets/             App 图标和项目概念图
+FLOW_DESIGN_DOC.md  产品设计说明
+SECURITY.md         安全边界
 ```
 
 ## License
 
-暂未指定开源许可证。公开内容用于个人项目展示与后续开发；如果你要在其他项目中分发，请先联系作者确认授权方式。
+暂未指定开源许可证。公开内容用于个人项目展示与后续开发。
