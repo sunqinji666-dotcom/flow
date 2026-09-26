@@ -1,797 +1,477 @@
 import SwiftUI
+import AppKit
 
 struct ContentView: View {
-    @EnvironmentObject var state: AppState
+    @EnvironmentObject private var state: AppState
+    @State private var showLibrary = false
     @State private var showSettings = false
-    @State private var showNodePicker = false
-    @State private var isPressing = false
-    @State private var pulsePhase: Double = 0
-    @State private var rocketLift = false
-    @State private var flamePulse = false
+    @State private var isPressed = false
 
     var body: some View {
         ZStack {
-            AppBackground()
-
-            VStack(spacing: 12) {
-                topBar
-
-                Spacer(minLength: 0)
-
-                speedLaunchButton
-
-                nodeSummary
-
-                selectedNodeButton
-                    .padding(.horizontal, 26)
-
-                proxyModeBanner
-                    .padding(.horizontal, 26)
-
-                HStack(spacing: 8) {
-                    StatusPill(title: "状态", value: state.connectionStatus, isOn: state.isConnected)
-                    StatusPill(title: "时长", value: state.connectedDuration, isOn: state.isConnected)
-                }
-                .padding(.horizontal, 26)
-
-                HStack(spacing: 8) {
-                    StatBox(title: "本次", value: state.sessionTraffic, note: "连接后统计")
-                    StatBox(title: "今日", value: state.todayTraffic, note: "今天已用")
-                    StatBox(title: "累计", value: state.totalTraffic, note: "设备累计")
-                }
-                .padding(.horizontal, 26)
-
-
-                Spacer(minLength: 0)
-
-                gearButton
-                    .padding(.bottom, 12)
+            FlowAmbientBackground()
+            VStack(spacing: 0) {
+                header
+                Spacer(minLength: 20)
+                connectionControl
+                Spacer(minLength: 22)
+                nodeCard.padding(.horizontal, 24)
+                statusStrip.padding(.horizontal, 24).padding(.top, 12)
+                trafficStrip.padding(.horizontal, 24).padding(.top, 10)
+                Spacer(minLength: 18)
+                bottomBar.padding(.horizontal, 24).padding(.bottom, 22)
             }
-            .padding(.top, 8)
-
-            if showNodePicker {
-                Color.black.opacity(0.32)
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-                    .onTapGesture { withAnimation(.easeInOut(duration: 0.18)) { showNodePicker = false } }
-
-                nodePickerPanel
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 22)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-
-            if showSettings {
-                Color.black.opacity(0.28)
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-                    .onTapGesture { withAnimation(.easeInOut(duration: 0.18)) { showSettings = false } }
-
-                settingsPanel
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 22)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
+            .padding(.top, 20)
         }
-        .onAppear {
-            startAnimationsIfNeeded()
+        .sheet(isPresented: $showLibrary) {
+            NodeLibrarySheet().environmentObject(state)
         }
-        .onChange(of: state.isConnected) { _, _ in
-            startAnimationsIfNeeded()
+        .sheet(isPresented: $showSettings) {
+            LocalSettingsSheet().environmentObject(state)
         }
     }
 
-    private var topBar: some View {
-        HStack {
-            Text("Flow")
-                .font(.system(size: 19, weight: .heavy, design: .rounded).italic())
-                .tracking(3)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color(hex: "F2F7FF"), Color(hex: "45D6FF"), Color(hex: "F3B85B")],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .shadow(color: Color(hex: "45D6FF").opacity(0.16), radius: 16)
-
-            Spacer()
-
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(state.isConnected ? Color(hex: "34C759") : Color(hex: "71859B"))
-                    .frame(width: 7, height: 7)
-                    .shadow(color: state.isConnected ? Color(hex: "34C759").opacity(0.7) : .clear, radius: 8)
-                Text(state.proxyStatusTitle)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Color(hex: "B8C8D8"))
+    private var header: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle().fill(.thinMaterial).frame(width: 42, height: 42)
+                    .overlay(Circle().stroke(.white.opacity(0.52), lineWidth: 0.8))
+                Image(systemName: "bolt.horizontal.circle.fill")
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundStyle(state.isConnected ? Color.cyan : Color.primary)
             }
-            .padding(.horizontal, 13)
-            .padding(.vertical, 9)
-            .glassCapsule()
-        }
-        .padding(.horizontal, 28)
-        .padding(.top, 34)
-    }
-
-    private var speedLaunchButton: some View {
-        ZStack {
-            if state.isConnected {
-                Circle()
-                    .stroke(Color(hex: "45D6FF").opacity(0.23), lineWidth: 3)
-                    .frame(width: 196, height: 196)
-                    .scaleEffect(1 + pulsePhase * 0.08)
-                    .opacity(0.82 - pulsePhase * 0.4)
-                    .shadow(color: Color(hex: "45D6FF").opacity(0.12), radius: 26)
-            }
-
-            if state.isConnected {
-                RocketLaunchView(lift: rocketLift, flamePulse: flamePulse)
-                    .offset(y: -84)
-                    .zIndex(4)
-            }
-
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) { isPressing = true }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                    withAnimation(.easeInOut(duration: 0.15)) { isPressing = false }
-                    state.toggleConnection()
-                }
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: state.isConnected
-                                    ? [Color.white.opacity(0.16), Color(hex: "0D3146"), Color(hex: "071520")]
-                                    : [Color(hex: "25242A"), Color(hex: "151519")],
-                                center: .topLeading,
-                                startRadius: 8,
-                                endRadius: 145
-                            )
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(state.isConnected ? Color(hex: "45D6FF") : Color(hex: "F3B85B").opacity(0.55), lineWidth: state.isConnected ? 6 : 3)
-                        )
-                        .shadow(color: state.isConnected ? Color(hex: "45D6FF").opacity(0.32) : .clear, radius: 34)
-                        .shadow(color: Color.black.opacity(0.38), radius: 24, y: 16)
-
-                    VStack(spacing: 7) {
-                        if state.isConnected {
-                            Text(speedParts.number)
-                                .font(.system(size: 42, weight: .heavy, design: .rounded))
-                                .tracking(-2)
-                                .foregroundColor(Color(hex: "45D6FF"))
-                                .shadow(color: Color(hex: "45D6FF").opacity(0.24), radius: 18)
-                            Text(speedParts.unit)
-                                .font(.system(size: 15, weight: .heavy, design: .rounded))
-                                .foregroundColor(Color(hex: "9DEAFF"))
-                        } else {
-                            Text("连")
-                                .font(.system(size: 48, weight: .heavy, design: .serif))
-                                .foregroundColor(Color(hex: "F3B85B"))
-                        }
-                    }
-                }
-                .frame(width: 148, height: 148)
-                .scaleEffect(isPressing ? 0.96 : 1)
-            }
-            .buttonStyle(.plain)
-        }
-        .frame(width: 210, height: 198)
-    }
-
-    private var nodeSummary: some View {
-        VStack(spacing: 6) {
-            if let node = state.isConnected ? state.activeNode : selectedNode {
-                Text("\(node.flag) \(node.name)")
-                    .font(.system(size: 24, weight: .heavy, design: .rounded))
-                    .foregroundColor(Color(hex: "F2F7FF"))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.74)
-                Text("\(node.host) · \(node.protocolDisplay) · \(node.transportDisplay) · 局域网共享")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color(hex: "71859B"))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            } else {
-                Text("Flow 已就绪")
-                    .font(.system(size: 20, weight: .heavy, design: .rounded))
-                    .foregroundColor(Color(hex: "F2F7FF"))
-                Text("点一下圆按钮，自动开启系统代理")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Color(hex: "71859B"))
-            }
-        }
-        .padding(.horizontal, 28)
-    }
-
-
-    private var proxyModeBanner: some View {
-        HStack(spacing: 10) {
-            Image(systemName: state.proxyModeIcon)
-                .font(.system(size: 12, weight: .heavy))
-                .foregroundColor(state.systemProxyEnabled ? Color(hex: "45D6FF") : Color(hex: "F3B85B"))
-                .frame(width: 24, height: 24)
-                .background((state.systemProxyEnabled ? Color(hex: "45D6FF") : Color(hex: "F3B85B")).opacity(0.12))
-                .clipShape(Circle())
-
             VStack(alignment: .leading, spacing: 2) {
-                Text(state.proxyModeHeadline)
-                    .font(.system(size: 11, weight: .heavy))
-                    .foregroundColor(Color(hex: "F2F7FF"))
-                Text(state.proxyModeDetail)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(Color(hex: "71859B"))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                Text("Flow").font(.system(size: 24, weight: .bold, design: .rounded))
+                Text("本机节点库 · 不读取服务器")
+                    .font(.caption.weight(.medium)).foregroundStyle(.secondary)
             }
-
             Spacer()
-
-            Text(state.routingModeTitle)
-                .font(.system(size: 9, weight: .heavy))
-                .foregroundColor(Color(hex: "B8C8D8"))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(Color.white.opacity(0.055))
-                .clipShape(Capsule())
+            HStack(spacing: 7) {
+                Circle().fill(state.isConnected ? Color.green : Color.secondary.opacity(0.6))
+                    .frame(width: 7, height: 7)
+                Text(state.isConnected ? "已连接" : "待连接").font(.caption.weight(.semibold))
+            }
+            .padding(.horizontal, 11).padding(.vertical, 8).glassCapsule()
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 7)
-        .background(LinearGradient(colors: [Color.white.opacity(0.065), Color.white.opacity(0.025)], startPoint: .topLeading, endPoint: .bottomTrailing))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke((state.systemProxyEnabled ? Color(hex: "45D6FF") : Color(hex: "F3B85B")).opacity(0.18), lineWidth: 1))
+        .padding(.horizontal, 24)
     }
 
-    private var gearButton: some View {
+    private var connectionControl: some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.22)) { showSettings.toggle() }
+            withAnimation(.smooth(duration: 0.18)) { isPressed = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
+                withAnimation(.smooth(duration: 0.25)) { isPressed = false }
+                state.toggleConnection()
+            }
         } label: {
-            Image(systemName: showSettings ? "gearshape.fill" : "gearshape")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(Color(hex: "B8C8D8"))
-                .frame(width: 44, height: 44)
-                .background(
-                    LinearGradient(colors: [Color.white.opacity(0.09), Color.white.opacity(0.03)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
-                .clipShape(Circle())
-                .overlay(Circle().stroke(Color.white.opacity(0.10), lineWidth: 1))
-                .shadow(color: .black.opacity(0.28), radius: 16, y: 8)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var settingsPanel: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 12) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("节点管理")
-                            .font(.system(size: 15, weight: .heavy))
-                            .foregroundColor(Color(hex: "F2F7FF"))
-                        Text(state.nodeUpdateMessage)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(state.nodeUpdateMessage.contains("失败") ? Color(hex: "FF6B5F") : Color(hex: "71859B"))
-                    }
-                    Spacer()
-                    Button {
-                        Task { await state.loadNodes() }
-                    } label: {
-                        if state.isUpdatingNodes {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Text("更新")
-                                .font(.system(size: 12, weight: .heavy))
-                                .foregroundColor(Color(hex: "F3B85B"))
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(state.isUpdatingNodes)
+            ZStack {
+                if state.isConnected {
+                    Circle().stroke(Color.cyan.opacity(0.26), lineWidth: 1.5).frame(width: 190, height: 190)
+                    Circle().stroke(Color.cyan.opacity(0.11), lineWidth: 10).frame(width: 215, height: 215)
                 }
-
-                NodeUpdateProgressView(
-                    isUpdating: state.isUpdatingNodes,
-                    current: state.nodeCheckCurrent,
-                    total: state.nodeCheckTotal,
-                    usable: state.nodeUsableCount
-                )
-
-                HStack(spacing: 10) {
-                    PortBox(title: "SOCKS5", value: $state.socksPort)
-                    PortBox(title: "HTTP", value: $state.httpPort)
-                }
-
-                SystemProxyRow(isOn: state.systemProxyEnabled) { enabled in
-                    state.setSystemProxyEnabled(enabled)
-                }
-
-                RoutingModePicker(selected: state.routingMode) { mode in
-                    state.setRoutingMode(mode)
-                }
-
-                VStack(spacing: 4) {
-                    Text(state.localProxyAddressTitle)
-                    Text(state.systemProxyEnabled ? "系统代理已开启，Mac 网络会自动经过 Flow" : "仅本地端口模式，其他软件可手动填端口")
-                }
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(Color(hex: "71859B"))
-            }
-            .padding(17)
-        }
-        .frame(maxHeight: 520)
-        .background(Color(hex: "18202B").opacity(0.96))
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.10), lineWidth: 1))
-        .shadow(color: .black.opacity(0.45), radius: 40, y: 18)
-    }
-
-    private var selectedNodeButton: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.22)) { showNodePicker = true }
-        } label: {
-            HStack(spacing: 10) {
-                if let node = selectedNode {
-                    Text(node.flag)
-                        .font(.system(size: 22))
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 6) {
-                            Text(node.name)
-                                .font(.system(size: 13, weight: .heavy))
-                                .foregroundColor(Color(hex: "F2F7FF"))
-                                .lineLimit(1)
-                            if state.isConnected {
-                                Circle().fill(Color(hex: "34C759")).frame(width: 6, height: 6)
-                            }
-                        }
-                        Text("\(node.protocolDisplay) · \(node.transportDisplay) · \(node.host):\(node.port)")
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
-                            .foregroundColor(Color(hex: "71859B"))
-                            .lineLimit(1)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 3) {
-                        Text(node.latency.map { _ in node.latencyDisplay } ?? (state.isTestingLatency ? "检测中" : "—"))
-                            .font(.system(size: 11, weight: .heavy, design: .monospaced))
-                            .foregroundColor(latencyColor(node.latency))
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(Color(hex: "71859B"))
-                    }
-                } else {
-                    Text("选择节点")
-                        .font(.system(size: 13, weight: .heavy))
-                        .foregroundColor(Color(hex: "F2F7FF"))
-                    Spacer()
-                    Image(systemName: "chevron.up.chevron.down")
-                        .foregroundColor(Color(hex: "71859B"))
-                }
-            }
-            .padding(.horizontal, 13)
-            .padding(.vertical, 11)
-            .background(LinearGradient(colors: [Color.white.opacity(0.07), Color.white.opacity(0.03)], startPoint: .topLeading, endPoint: .bottomTrailing))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.10), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var nodePickerPanel: some View {
-        VStack(spacing: 13) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("选择节点")
-                        .font(.system(size: 15, weight: .heavy))
-                        .foregroundColor(Color(hex: "F2F7FF"))
-                    Text(state.nodeUpdateMessage)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(state.nodeUpdateMessage.contains("失败") ? Color(hex: "FF6B5F") : Color(hex: "71859B"))
-                }
-                Spacer()
-                Button {
-                    Task { await state.loadNodes() }
-                } label: {
-                    if state.isUpdatingNodes {
-                        ProgressView()
-                            .controlSize(.small)
-                            .frame(width: 30, height: 30)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(Color(hex: "F3B85B"))
-                            .frame(width: 30, height: 30)
-                    }
-                }
-                .buttonStyle(.plain)
-                .disabled(state.isUpdatingNodes)
-            }
-
-            if let nodes = state.nodes, !nodes.isEmpty {
-                ScrollView {
-                    VStack(spacing: 8) {
-                        ForEach(nodes.indices, id: \.self) { i in
-                            NodeRow(
-                                node: nodes[i],
-                                isSelected: i == state.selectedIndex,
-                                isConnected: state.isConnected && i == state.selectedIndex
-                            ) {
-                                state.selectNode(i)
-                                withAnimation(.easeInOut(duration: 0.18)) { showNodePicker = false }
-                            }
-                        }
-                    }
-                }
-                .frame(maxHeight: 390)
-            } else {
+                Circle().fill(.regularMaterial).frame(width: 156, height: 156)
+                    .overlay(Circle().stroke(.white.opacity(0.65), lineWidth: 1))
+                    .shadow(color: state.isConnected ? .cyan.opacity(0.22) : .black.opacity(0.16), radius: 22, y: 10)
                 VStack(spacing: 8) {
-                    if state.isUpdatingNodes {
-                        ProgressView().controlSize(.small)
-                    }
-                    Text(state.isUpdatingNodes ? "正在真实检测节点" : "暂无可用节点")
-                        .font(.system(size: 13, weight: .heavy))
-                        .foregroundColor(Color(hex: "F2F7FF"))
-                    Text(state.nodeUpdateMessage)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(state.nodeUpdateMessage.contains("失败") ? Color(hex: "FF6B5F") : Color(hex: "71859B"))
+                    Image(systemName: state.isConnected ? "power" : "bolt.fill")
+                        .font(.system(size: 31, weight: .medium))
+                    Text(state.isConnected ? "断开连接" : "立即连接").font(.headline.weight(.semibold))
+                    Text(state.isConnected ? state.downloadSpeed : "使用所选节点")
+                        .font(.caption.weight(.medium)).foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 30)
-                .background(Color(hex: "151B24"))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "2B3A4B"), lineWidth: 1))
+                .foregroundStyle(state.isConnected ? Color.cyan : Color.primary)
             }
+            .scaleEffect(isPressed ? 0.96 : 1)
         }
-        .padding(17)
-        .background(Color(hex: "18202B").opacity(0.97))
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.10), lineWidth: 1))
-        .shadow(color: .black.opacity(0.48), radius: 42, y: 18)
+        .buttonStyle(.plain)
     }
 
-    private func latencyColor(_ latency: Int?) -> Color {
-        guard let latency else { return Color(hex: "71859B") }
-        if latency < 2000 { return Color(hex: "34C759") }
-        return Color(hex: "F3B85B")
+    private var nodeCard: some View {
+        Button { showLibrary = true } label: {
+            HStack(spacing: 13) {
+                ZStack {
+                    Circle().fill(.ultraThinMaterial).frame(width: 43, height: 43)
+                    Text(selectedNode?.flag ?? "＋").font(.system(size: 22))
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(selectedNode?.name ?? "导入一个节点").font(.headline.weight(.semibold)).lineLimit(1)
+                    Text(selectedNode.map(nodeDescription) ?? "仅保存于此 Mac")
+                        .font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(selectedNode?.latencyDisplay ?? "本机")
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(latencyColor(selectedNode?.latency))
+                    Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(.secondary)
+                }
+            }
+            .padding(14).glassCard(cornerRadius: 20)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var statusStrip: some View {
+        HStack(spacing: 10) {
+            MiniMetric(icon: "circle.fill", title: "状态", value: state.connectionStatus, tint: state.isConnected ? .green : .secondary)
+            MiniMetric(icon: "timer", title: "时长", value: state.connectedDuration, tint: .secondary)
+        }
+    }
+
+    private var trafficStrip: some View {
+        HStack(spacing: 10) {
+            TrafficMetric(title: "本次", value: state.sessionTraffic)
+            TrafficMetric(title: "今日", value: state.todayTraffic)
+            TrafficMetric(title: "累计", value: state.totalTraffic)
+        }
+    }
+
+    private var bottomBar: some View {
+        HStack(spacing: 10) {
+            Button { showLibrary = true } label: {
+                Label("节点库", systemImage: "point.3.connected.trianglepath.dotted")
+            }.buttonStyle(FlowGlassButtonStyle())
+            Button { showSettings = true } label: {
+                Image(systemName: "slider.horizontal.3").frame(width: 18)
+            }.buttonStyle(FlowGlassButtonStyle())
+            Spacer()
+            Text(state.systemProxyEnabled ? "系统代理" : "本地端口")
+                .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                .padding(.horizontal, 12).padding(.vertical, 9).glassCapsule()
+        }
     }
 
     private var selectedNode: FlowNode? {
-        guard let nodes = state.nodes, state.selectedIndex < nodes.count else { return nil }
+        guard let nodes = state.nodes, nodes.indices.contains(state.selectedIndex) else { return nil }
         return nodes[state.selectedIndex]
     }
 
-    private var speedParts: (number: String, unit: String) {
-        let speed = state.downloadSpeed
-        if speed == "—" { return ("—", "") }
-        if speed.contains("MB/s") { return (speed.replacingOccurrences(of: " MB/s", with: ""), "MB/s") }
-        if speed.contains("KB/s") { return (speed.replacingOccurrences(of: " KB/s", with: ""), "KB/s") }
-        return (speed, "")
+    private func nodeDescription(_ node: FlowNode) -> String {
+        "\(node.protocolDisplay) · \(node.transportDisplay) · \(node.host):\(node.port)"
     }
 
-    private func startAnimationsIfNeeded() {
-        if state.isConnected {
-            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { pulsePhase = 1 }
-            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) { rocketLift = true }
-            withAnimation(.easeInOut(duration: 0.24).repeatForever(autoreverses: true)) { flamePulse = true }
-        } else {
-            withAnimation(.default) { pulsePhase = 0; rocketLift = false; flamePulse = false }
-        }
+    private func latencyColor(_ latency: Int?) -> Color {
+        guard let latency else { return .secondary }
+        return latency < 800 ? .green : latency < 1600 ? .orange : .red
     }
 }
 
-private struct AppBackground: View {
-    var body: some View {
-        ZStack {
-            LinearGradient(colors: [Color(hex: "151B24"), Color(hex: "10141B"), Color(hex: "090B10")], startPoint: .topLeading, endPoint: .bottomTrailing)
-            RadialGradient(colors: [Color(hex: "45D6FF").opacity(0.14), .clear], center: .top, startRadius: 10, endRadius: 260)
-            RadialGradient(colors: [Color(hex: "F3B85B").opacity(0.10), .clear], center: .topLeading, startRadius: 20, endRadius: 240)
-        }
-        .ignoresSafeArea()
-    }
-}
-
-private struct RocketLaunchView: View {
-    let lift: Bool
-    let flamePulse: Bool
+private struct NodeLibrarySheet: View {
+    @EnvironmentObject private var state: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var showImport = false
+    @State private var nodeToDelete: Int?
+    @State private var exportMessage: String?
 
     var body: some View {
         ZStack {
-            Ellipse()
-                .fill(Color(hex: "45D6FF").opacity(0.14))
-                .frame(width: 52, height: 92)
-                .blur(radius: 8)
-                .offset(y: 50)
-                .scaleEffect(y: flamePulse ? 1.16 : 0.86)
-
-            VStack(spacing: 0) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(LinearGradient(colors: [Color(hex: "FFF7DA"), Color(hex: "F8D47A"), Color(hex: "D88A32")], startPoint: .top, endPoint: .bottom))
-                        .frame(width: 22, height: 38)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.65), lineWidth: 1))
-                        .shadow(color: Color(hex: "F8D47A").opacity(0.55), radius: 14)
-
-                    Circle()
-                        .fill(RadialGradient(colors: [Color(hex: "DDF8FF"), Color(hex: "052433")], center: .topLeading, startRadius: 1, endRadius: 8))
-                        .frame(width: 9, height: 9)
-                        .overlay(Circle().stroke(Color.white.opacity(0.7), lineWidth: 1))
-                        .offset(y: -7)
-
-                    HStack(spacing: 18) {
-                        RoundedRectangle(cornerRadius: 4).fill(LinearGradient(colors: [Color(hex: "FFE18A"), Color(hex: "F09A3B")], startPoint: .top, endPoint: .bottom)).frame(width: 10, height: 15).rotationEffect(.degrees(-25))
-                        RoundedRectangle(cornerRadius: 4).fill(LinearGradient(colors: [Color(hex: "FFE18A"), Color(hex: "F09A3B")], startPoint: .top, endPoint: .bottom)).frame(width: 10, height: 15).rotationEffect(.degrees(25))
+            FlowAmbientBackground()
+            VStack(spacing: 16) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("本机节点库").font(.title2.weight(.bold))
+                        Text("仅保存于这台 Mac；不会拉取或上传服务器配置。")
+                            .font(.caption).foregroundStyle(.secondary)
                     }
-                    .offset(y: 16)
+                    Spacer()
+                    Button(action: dismiss.callAsFunction) {
+                        Image(systemName: "xmark").font(.body.weight(.bold)).frame(width: 34, height: 34)
+                    }.buttonStyle(FlowGlassButtonStyle())
                 }
 
-                Capsule()
-                    .fill(LinearGradient(colors: [Color.white.opacity(0.95), Color(hex: "FFE18A"), Color(hex: "FF7A35"), .clear], startPoint: .top, endPoint: .bottom))
-                    .frame(width: flamePulse ? 16 : 12, height: flamePulse ? 34 : 24)
-                    .blur(radius: 0.3)
-                    .shadow(color: Color(hex: "FF7A35").opacity(0.75), radius: 12)
-                    .offset(y: -1)
+                if let nodes = state.nodes, !nodes.isEmpty {
+                    ScrollView {
+                        LazyVStack(spacing: 9) {
+                            ForEach(nodes.indices, id: \.self) { index in
+                                LocalNodeRow(node: nodes[index], isSelected: index == state.selectedIndex,
+                                             isConnected: state.isConnected && index == state.selectedIndex,
+                                             select: { state.selectNode(index); dismiss() },
+                                             delete: { nodeToDelete = index })
+                            }
+                        }
+                    }
+                } else {
+                    ContentUnavailableView("还没有节点", systemImage: "point.3.connected.trianglepath.dotted",
+                                           description: Text("导入 VLESS Reality TCP 链接后，会加密保存在这台 Mac。"))
+                        .frame(maxHeight: .infinity)
+                }
+
+                HStack {
+                    Button { state.testAllLatencies() } label: {
+                        Label("测试延迟", systemImage: "waveform.path.ecg")
+                    }.buttonStyle(FlowGlassButtonStyle()).disabled((state.nodes ?? []).isEmpty)
+                    Spacer()
+                    Button { exportNodes() } label: {
+                        Label("导出节点", systemImage: "square.and.arrow.up")
+                    }.buttonStyle(FlowGlassButtonStyle()).disabled((state.nodes ?? []).isEmpty)
+                    Button { showImport = true } label: {
+                        Label("导入链接", systemImage: "plus")
+                    }.buttonStyle(FlowAccentButtonStyle())
+                }
             }
-            .offset(y: lift ? -8 : 4)
+            .padding(22)
         }
-        .frame(width: 70, height: 120)
+        .frame(minWidth: 500, minHeight: 520)
+        .sheet(isPresented: $showImport) { ImportLinkSheet().environmentObject(state) }
+        .alert("从本机移除此节点？", isPresented: Binding(
+            get: { nodeToDelete != nil }, set: { if !$0 { nodeToDelete = nil } }
+        )) {
+            Button("移除", role: .destructive) {
+                if let index = nodeToDelete { state.deleteNode(at: index) }
+                nodeToDelete = nil
+            }
+            Button("取消", role: .cancel) { nodeToDelete = nil }
+        } message: {
+            Text("这会删除这台 Mac 上保存的链接；不会影响任何服务器。")
+        }
+        .alert("导出节点", isPresented: Binding(
+            get: { exportMessage != nil }, set: { if !$0 { exportMessage = nil } }
+        )) {
+            Button("好") { exportMessage = nil }
+        } message: {
+            Text(exportMessage ?? "")
+        }
+    }
+
+    private func exportNodes() {
+        let links = state.exportableVLESSLinks()
+        guard !links.isEmpty else {
+            exportMessage = "当前没有可导出的 VLESS 节点。"
+            return
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let panel = NSSavePanel()
+        panel.title = "导出 Flow 节点"
+        panel.nameFieldStringValue = "Flow-Nodes-\(formatter.string(from: Date())).txt"
+        panel.allowedContentTypes = [.plainText]
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            let content = links.joined(separator: "\n") + "\n"
+            try content.write(to: url, atomically: true, encoding: .utf8)
+            exportMessage = "已导出 \(links.count) 个节点到：\n\(url.path)"
+        } catch {
+            exportMessage = "导出失败：\(error.localizedDescription)"
+        }
     }
 }
 
-
-
-private struct NodeUpdateProgressView: View {
-    let isUpdating: Bool
-    let current: Int
-    let total: Int
-    let usable: Int
+private struct ImportLinkSheet: View {
+    @EnvironmentObject private var state: AppState
+    @Environment(\.dismiss) private var dismiss
+    @State private var link = ""
+    @State private var errorText: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 15) {
+            Text("导入 VLESS 链接").font(.title3.weight(.bold))
+            Text("支持 VLESS + Reality + TCP。链接只保存到这台 Mac。")
+                .font(.caption).foregroundStyle(.secondary)
+            TextEditor(text: $link)
+                .font(.system(.body, design: .monospaced)).frame(height: 130).padding(8)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(.white.opacity(0.45), lineWidth: 0.7))
+            if let errorText { Text(errorText).font(.caption).foregroundStyle(.red) }
             HStack {
-                Text(isUpdating ? "真实检测中" : "节点状态")
-                    .font(.system(size: 11, weight: .heavy))
-                    .foregroundColor(Color(hex: "F2F7FF"))
+                Button("取消", action: dismiss.callAsFunction).buttonStyle(FlowGlassButtonStyle())
                 Spacer()
-                Text(total > 0 ? "\(min(current, total))/\(total) · 可用 \(usable)" : "等待更新")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundColor(isUpdating ? Color(hex: "F3B85B") : Color(hex: "71859B"))
-            }
-
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.06))
-                    Capsule()
-                        .fill(LinearGradient(colors: [Color(hex: "45D6FF"), Color(hex: "F3B85B")], startPoint: .leading, endPoint: .trailing))
-                        .frame(width: progressWidth(totalWidth: proxy.size.width))
+                Button("导入到本机") {
+                    do {
+                        _ = try state.importVLESSLink(link)
+                        dismiss()
+                    } catch {
+                        errorText = error.localizedDescription
+                    }
                 }
+                .buttonStyle(FlowAccentButtonStyle())
+                .disabled(link.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .frame(height: 6)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color(hex: "151B24"))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "2B3A4B"), lineWidth: 1))
-    }
-
-    private func progressWidth(totalWidth: CGFloat) -> CGFloat {
-        guard total > 0 else { return 0 }
-        return totalWidth * CGFloat(min(current, total)) / CGFloat(total)
+        .padding(22).frame(width: 480).background(FlowAmbientBackground())
     }
 }
 
-private struct SystemProxyRow: View {
-    let isOn: Bool
-    let onChange: (Bool) -> Void
+private struct LocalSettingsSheet: View {
+    @EnvironmentObject private var state: AppState
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("系统代理")
-                    .font(.system(size: 12, weight: .heavy))
-                    .foregroundColor(Color(hex: "F2F7FF"))
-                Text(isOn ? "会自动接管 Mac 网络代理" : "默认关闭，只提供本地代理端口")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(Color(hex: "71859B"))
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("本地设置").font(.title3.weight(.bold))
+                    Text("网络代理仅在你开启连接后生效。").font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button(action: dismiss.callAsFunction) { Image(systemName: "xmark") }
+                    .buttonStyle(FlowGlassButtonStyle())
+            }
+            SettingsRow(title: "系统代理", detail: "开启后，Mac 的网络请求会经过 Flow") {
+                Toggle("", isOn: Binding(get: { state.systemProxyEnabled }, set: { state.setSystemProxyEnabled($0) }))
+                    .toggleStyle(.switch).labelsHidden()
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                Text("分流策略").font(.headline)
+                Picker("分流策略", selection: Binding(get: { state.routingMode }, set: { state.setRoutingMode($0) })) {
+                    Text("绕过大陆").tag("bypassCN")
+                    Text("全局代理").tag("global")
+                    Text("绕过局域网").tag("lanOnly")
+                    Text("不代理").tag("direct")
+                }.pickerStyle(.segmented)
+            }.padding(14).glassCard(cornerRadius: 17)
+            HStack(spacing: 10) {
+                PortField(title: "SOCKS5", value: $state.socksPort)
+                PortField(title: "HTTP", value: $state.httpPort)
+            }
+            Text("本机地址：\(state.localProxyAddressTitle)")
+                .font(.caption.monospaced()).foregroundStyle(.secondary).padding(.top, 2)
+        }
+        .padding(22).frame(width: 490).background(FlowAmbientBackground())
+    }
+}
+
+private struct LocalNodeRow: View {
+    let node: FlowNode
+    let isSelected: Bool
+    let isConnected: Bool
+    let select: () -> Void
+    let delete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: select) {
+                Text(node.flag).font(.system(size: 22)).frame(width: 36, height: 36)
+                    .background(.ultraThinMaterial, in: Circle())
+            }.buttonStyle(.plain)
+            Button(action: select) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(node.name).font(.headline.weight(.semibold))
+                        if isConnected { Circle().fill(.green).frame(width: 7, height: 7) }
+                    }
+                    Text("\(node.protocolDisplay) · \(node.transportDisplay) · \(node.host):\(node.port)")
+                        .font(.caption.monospaced()).foregroundStyle(.secondary)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }.buttonStyle(.plain)
+            VStack(alignment: .trailing, spacing: 5) {
+                Text(node.latencyDisplay).font(.caption.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(isSelected ? Color.cyan : .secondary)
+                Button(action: delete) {
+                    Image(systemName: "trash").font(.caption.weight(.bold)).foregroundStyle(.secondary)
+                        .frame(width: 27, height: 27)
+                }.buttonStyle(.plain)
+            }
+        }
+        .padding(12).glassCard(cornerRadius: 17, highlighted: isSelected)
+    }
+}
+
+private struct SettingsRow<Trailing: View>: View {
+    let title: String
+    let detail: String
+    @ViewBuilder let trailing: () -> Trailing
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.headline)
+                Text(detail).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Toggle("", isOn: Binding(get: { isOn }, set: { onChange($0) }))
-                .toggleStyle(.switch)
-                .labelsHidden()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color(hex: "151B24"))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "2B3A4B"), lineWidth: 1))
+            trailing()
+        }.padding(14).glassCard(cornerRadius: 17)
     }
 }
 
-private struct RoutingModePicker: View {
-    let selected: String
-    let onSelect: (String) -> Void
-
-    private let items: [(String, String)] = [
-        ("direct", "不代理"),
-        ("bypassCN", "绕过大陆"),
-        ("lanOnly", "绕过局域网"),
-        ("global", "全局")
-    ]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("分流策略")
-                    .font(.system(size: 12, weight: .heavy))
-                    .foregroundColor(Color(hex: "F2F7FF"))
-                Spacer()
-                Text(title(for: selected))
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(Color(hex: "F3B85B"))
-            }
-
-            HStack(spacing: 6) {
-                ForEach(items, id: \.0) { item in
-                    Button { onSelect(item.0) } label: {
-                        Text(item.1)
-                            .font(.system(size: 10, weight: .heavy))
-                            .foregroundColor(selected == item.0 ? Color(hex: "071520") : Color(hex: "B8C8D8"))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background(selected == item.0 ? Color(hex: "F3B85B") : Color.white.opacity(0.05))
-                            .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color(hex: "151B24"))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "2B3A4B"), lineWidth: 1))
-    }
-
-    private func title(for key: String) -> String {
-        items.first(where: { $0.0 == key })?.1 ?? "绕过大陆"
-    }
-}
-
-private struct PortBox: View {
+private struct PortField: View {
     let title: String
     @Binding var value: String
     var body: some View {
         HStack {
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(Color(hex: "71859B"))
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             Spacer()
-            TextField("", text: $value)
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .foregroundColor(Color(hex: "F2F7FF"))
-                .multilineTextAlignment(.trailing)
-                .textFieldStyle(.plain)
-                .frame(width: 58)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color(hex: "151B24"))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "2B3A4B"), lineWidth: 1))
+            TextField("", text: $value).font(.body.monospacedDigit()).multilineTextAlignment(.trailing)
+                .textFieldStyle(.plain).frame(width: 72)
+        }.padding(14).glassCard(cornerRadius: 17)
     }
 }
 
-private struct NodeRow: View {
-    let node: FlowNode
-    let isSelected: Bool
-    let isConnected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Text(node.flag)
-                    .font(.system(size: 22))
-                    .frame(width: 30)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text(node.name)
-                            .font(.system(size: 12, weight: .heavy))
-                            .foregroundColor(Color(hex: "F2F7FF"))
-                            .lineLimit(1)
-                        if isConnected {
-                            Circle().fill(Color(hex: "34C759")).frame(width: 6, height: 6)
-                        }
-                    }
-                    Text("\(node.protocolDisplay) · \(node.transportDisplay) · \(node.host):\(node.port)")
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
-                        .foregroundColor(Color(hex: "71859B"))
-                        .lineLimit(1)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(node.latencyDisplay)
-                        .font(.system(size: 10, weight: .heavy, design: .monospaced))
-                        .foregroundColor(node.latency.map { $0 < 2000 ? Color(hex: "34C759") : Color(hex: "F3B85B") } ?? Color(hex: "71859B"))
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(Color(hex: "F3B85B"))
-                    }
-                }
-            }
-            .padding(.horizontal, 11)
-            .padding(.vertical, 10)
-            .background(isSelected ? Color(hex: "242321") : Color(hex: "151B24"))
-            .clipShape(RoundedRectangle(cornerRadius: 13))
-            .overlay(RoundedRectangle(cornerRadius: 13).stroke(isSelected ? Color(hex: "F3B85B").opacity(0.48) : Color(hex: "2B3A4B"), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-private struct StatusPill: View {
+private struct MiniMetric: View {
+    let icon: String
     let title: String
     let value: String
-    let isOn: Bool
-
+    let tint: Color
     var body: some View {
         HStack(spacing: 7) {
-            Circle().fill(isOn ? Color(hex: "34C759") : Color(hex: "71859B")).frame(width: 7, height: 7).shadow(color: isOn ? Color(hex: "34C759").opacity(0.65) : .clear, radius: 10)
-            Text(title).font(.system(size: 10, weight: .medium)).foregroundColor(Color(hex: "71859B"))
-            Text(value).font(.system(size: 12, weight: .heavy, design: .monospaced)).foregroundColor(isOn ? Color(hex: "CDEFD4") : Color(hex: "B8C8D8"))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(LinearGradient(colors: [Color.white.opacity(0.055), Color.white.opacity(0.025)], startPoint: .topLeading, endPoint: .bottomTrailing))
-        .clipShape(Capsule())
-        .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 1))
+            Image(systemName: icon).font(.system(size: 8, weight: .bold)).foregroundStyle(tint)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.caption2).foregroundStyle(.secondary)
+                Text(value).font(.caption.weight(.semibold)).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }.padding(.horizontal, 12).padding(.vertical, 10).frame(maxWidth: .infinity).glassCard(cornerRadius: 15)
     }
 }
 
-private struct StatBox: View {
+private struct TrafficMetric: View {
     let title: String
     let value: String
-    let note: String
-
     var body: some View {
-        VStack(spacing: 5) {
-            Text(title).font(.system(size: 10, weight: .medium)).foregroundColor(Color(hex: "71859B"))
-            Text(value).font(.system(size: 13, weight: .heavy, design: .monospaced)).foregroundColor(Color(hex: "F3B85B")).lineLimit(1).minimumScaleFactor(0.7)
-            Text(note).font(.system(size: 8, weight: .medium)).foregroundColor(Color(hex: "4E5965")).lineLimit(1)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 9)
-        .background(LinearGradient(colors: [Color.white.opacity(0.055), Color.white.opacity(0.025)], startPoint: .topLeading, endPoint: .bottomTrailing))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.08), lineWidth: 1))
+        VStack(spacing: 4) {
+            Text(title).font(.caption2).foregroundStyle(.secondary)
+            Text(value).font(.caption.weight(.semibold).monospacedDigit()).lineLimit(1).minimumScaleFactor(0.72)
+        }.padding(.vertical, 10).frame(maxWidth: .infinity).glassCard(cornerRadius: 15)
+    }
+}
+
+private struct FlowAmbientBackground: View {
+    var body: some View {
+        ZStack {
+            Color(nsColor: .windowBackgroundColor)
+            Circle().fill(Color.cyan.opacity(0.22)).frame(width: 380, height: 380).blur(radius: 80).offset(x: -150, y: -260)
+            Circle().fill(Color.indigo.opacity(0.20)).frame(width: 360, height: 360).blur(radius: 85).offset(x: 190, y: 260)
+            LinearGradient(colors: [.white.opacity(0.10), .clear, .black.opacity(0.07)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }.ignoresSafeArea()
+    }
+}
+
+private struct FlowGlassButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+            .padding(.horizontal, 13).padding(.vertical, 9)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(.white.opacity(configuration.isPressed ? 0.75 : 0.48), lineWidth: 0.7))
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+    }
+}
+
+private struct FlowAccentButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+            .padding(.horizontal, 15).padding(.vertical, 10)
+            .background(Color.accentColor.opacity(configuration.isPressed ? 0.72 : 0.92), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(.white.opacity(0.55), lineWidth: 0.7))
+            .shadow(color: Color.accentColor.opacity(0.20), radius: 10, y: 5)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
     }
 }
 
 private extension View {
-    func glassCapsule() -> some View {
-        self.background(LinearGradient(colors: [Color.white.opacity(0.10), Color.white.opacity(0.035)], startPoint: .topLeading, endPoint: .bottomTrailing))
-            .clipShape(Capsule())
-            .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
-            .shadow(color: .black.opacity(0.14), radius: 16, y: 6)
+    func glassCard(cornerRadius: CGFloat, highlighted: Bool = false) -> some View {
+        background(.thinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(highlighted ? Color.cyan.opacity(0.72) : .white.opacity(0.52), lineWidth: highlighted ? 1.2 : 0.7))
+            .shadow(color: .black.opacity(0.10), radius: 13, y: 7)
     }
-}
-
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let r = Double((int >> 16) & 0xFF) / 255
-        let g = Double((int >> 8) & 0xFF) / 255
-        let b = Double(int & 0xFF) / 255
-        self.init(red: r, green: g, blue: b)
+    func glassCapsule() -> some View {
+        background(.thinMaterial, in: Capsule())
+            .overlay(Capsule().stroke(.white.opacity(0.52), lineWidth: 0.7))
+            .shadow(color: .black.opacity(0.08), radius: 7, y: 3)
     }
 }
 
 #Preview {
-    ContentView()
-        .environmentObject(AppState())
+    ContentView().environmentObject(AppState())
 }

@@ -68,7 +68,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        false
+        // Keep Flow alive as a menu-bar app, but remove it from the Dock after
+        // the main window's red close button is used.
+        DispatchQueue.main.async {
+            NSApplication.shared.setActivationPolicy(.accessory)
+        }
+        return false
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -239,7 +244,7 @@ struct FlowApp: App {
         WindowGroup("Flow", id: "main") {
             ContentView()
                 .environmentObject(state)
-                .frame(width: 380, height: 700)
+                .frame(width: 440, height: 720)
                 .fixedSize()
                 .onAppear {
                     appDelegate.configure(state: state) {
@@ -252,6 +257,6 @@ struct FlowApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
-        .defaultSize(width: 380, height: 700)
+        .defaultSize(width: 440, height: 720)
     }
 }

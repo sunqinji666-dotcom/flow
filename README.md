@@ -33,8 +33,8 @@ Flow 是只为 macOS 打造的轻量连接客户端。它把底层核心、节�
 
 ![Flow 的本地连接架构](assets/flow-how-it-works.png)
 
-1. 读取你本机缓存的节点，或你自行配置的私有订阅地址。
-2. 启动临时本地代理验证实际连通性，而不只是测试端口。
+1. 仅读取你本机保存的节点；通过界面导入链接，不设订阅地址，也不读取服务器节点。
+2. 可在节点库中测试端口延迟；连接时由本地核心处理实际流量。
 3. 通过本地核心提供 SOCKS5 与 HTTP 代理。
 4. 由你决定是否启用 macOS 系统代理。
 
@@ -48,7 +48,7 @@ Flow 是只为 macOS 打造的轻量连接客户端。它把底层核心、节�
 
 - 从 [Releases](https://github.com/sunqinji666-dotcom/flow/releases/latest) 下载最新 macOS Apple Silicon 版本。
 - 源码运行需要 macOS 14+ 与 Swift 5.9+：`cd Sources/Flow && swift run`。
-- 私有订阅地址由你自行写入本机设置；仓库不包含可用凭据。
+- 在“节点库”中导入 VLESS Reality TCP 链接；仓库不包含可用凭据。
 
 详细使用、构建与故障定位请阅读 [中文完整说明](docs/README.zh-CN.md)。
 

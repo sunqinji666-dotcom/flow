@@ -11,11 +11,7 @@ final class AppState: ObservableObject {
     @Published var nodes: [FlowNode]?
     @Published var selectedIndex = 0
     @Published var isTestingLatency = false
-    @Published var isUpdatingNodes = false
-    @Published var nodeUpdateMessage = "未更新"
-    @Published var nodeCheckCurrent = 0
-    @Published var nodeCheckTotal = 0
-    @Published var nodeUsableCount = 0
+    @Published var nodeUpdateMessage = "本机节点库"
     @Published var downloadSpeed = "—"
     @Published var uploadSpeed = "—"
     @Published var connectionStatus = "准备就绪"
@@ -29,28 +25,6 @@ final class AppState: ObservableObject {
     @Published var routingMode = UserDefaults.standard.string(forKey: "FlowRoutingMode") ?? "bypassCN"
     private var apiPort = 10608
     private var didApplySystemProxy = UserDefaults.standard.bool(forKey: "FlowDidApplySystemProxy")
-
-    // Public build ships with an empty safe fallback. Configure your own node
-    // locally or provide a private remote endpoint through UserDefaults.
-    private let defaultNodes: [FlowNode] = [
-        FlowNode(
-            flag: "🌐",
-            name: "示例节点",
-            host: "example.com",
-            port: 443,
-            protocolType: "vless",
-            uuid: "00000000-0000-0000-0000-000000000000",
-            flow: "xtls-rprx-vision",
-            sni: "example.com",
-            fingerprint: "chrome",
-            publicKey: "REPLACE_WITH_PRIVATE_REALITY_PUBLIC_KEY",
-            shortId: "00",
-            spiderX: "/",
-            transport: "tcp",
-            security: "reality",
-            latency: 95
-        ),
-    ]
 
     private var coreProcess: Process?
     private var speedTimer: Timer?
@@ -76,144 +50,17 @@ final class AppState: ObservableObject {
 
     init() {
         Self.cleanupOrphanFlowCores()
+        // Remove the legacy remote-subscription preference during upgrade.
+        // Flow no longer reads, writes, or contacts a node server.
+        UserDefaults.standard.removeObject(forKey: "FlowRemoteNodesURL")
         if let cached = Self.loadCachedValidNodes(), !cached.isEmpty {
             nodes = cached
-            nodeUpdateMessage = "已加载上次可用节点 · \(cached.count) 个"
+            nodeUpdateMessage = "本机节点库 · \(cached.count) 个"
         } else {
-            nodes = defaultNodes
-        }
-        Task { await loadNodes() }
-    }
-
-    @discardableResult
-    func loadNodes() async -> Bool {
-        guard !isUpdatingNodes else { return false }
-        // Remote nodes are optional. Built-in nodes are available immediately;
-        // when this endpoint works, it replaces the built-in list.
-        let remoteURLString = UserDefaults.standard.string(forKey: "FlowRemoteNodesURL")
-            ?? "https://your-server.example/flow/nodes.json"
-        guard let url = URL(string: remoteURLString),
-              url.host != "your-server.com" else {
-            nodeUpdateMessage = "使用内置节点"
-            return false
-        }
-
-        isUpdatingNodes = true
-        nodeCheckCurrent = 0
-        nodeCheckTotal = 0
-        nodeUsableCount = 0
-        nodeUpdateMessage = "正在拉取远程节点…"
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 5
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                isUpdatingNodes = false
-                nodeCheckCurrent = 0
-                nodeCheckTotal = 0
-                nodeUsableCount = 0
-                nodeUpdateMessage = "更新失败：HTTP \(http.statusCode)"
-                return false
-            }
-            if let envelope = try? JSONDecoder().decode(FlowNodeEnvelope.self, from: data), !envelope.nodes.isEmpty {
-                return await validateAndApplyNodes(envelope.nodes)
-            } else if let fetched = try? JSONDecoder().decode([FlowNode].self, from: data), !fetched.isEmpty {
-                return await validateAndApplyNodes(fetched)
-            } else {
-                isUpdatingNodes = false
-                nodeCheckCurrent = 0
-                nodeCheckTotal = 0
-                nodeUsableCount = 0
-                nodeUpdateMessage = "更新失败：节点为空"
-                return false
-            }
-        } catch {
-            // Keep current/cached valid nodes when the remote endpoint is unavailable.
-            isUpdatingNodes = false
-            nodeCheckCurrent = 0
-            nodeCheckTotal = 0
-            nodeUsableCount = 0
-            nodeUpdateMessage = "更新失败：\(error.localizedDescription)"
-            return false
+            nodes = []
+            nodeUpdateMessage = "本机节点库为空"
         }
     }
-
-    private func validateAndApplyNodes(_ candidates: [FlowNode]) async -> Bool {
-        guard let xrayURL = findXrayExecutable() else {
-            isUpdatingNodes = false
-            nodeCheckCurrent = 0
-            nodeCheckTotal = 0
-            nodeUsableCount = 0
-            nodeUpdateMessage = "更新失败：找不到 Xray"
-            return false
-        }
-
-        var passed: [FlowNode] = []
-        isUpdatingNodes = true
-        nodeCheckCurrent = 0
-        nodeCheckTotal = candidates.count
-        nodeUsableCount = 0
-        // Keep the last valid list visible while a fresh real validation runs.
-        selectedIndex = min(selectedIndex, max(0, (nodes?.count ?? 1) - 1))
-
-        let batchSize = 4
-        var cursor = 0
-        while cursor < candidates.count {
-            let upper = min(cursor + batchSize, candidates.count)
-            nodeCheckCurrent = cursor
-            nodeUsableCount = passed.count
-            nodeUpdateMessage = "真实检测 \(cursor + 1)-\(upper)/\(candidates.count) · 可用 \(passed.count)"
-            let batch = Array(candidates[cursor..<upper].enumerated()).map { (offset, node) in
-                (index: cursor + offset, node: node)
-            }
-
-            let results = await withTaskGroup(of: (Int, FlowNode, (ok: Bool, latency: Int?)).self) { group in
-                for item in batch {
-                    let socksPort = 19080 + item.index
-                    let config = generateValidationConfig(node: item.node, socksPort: socksPort)
-                    group.addTask {
-                        let result = Self.runProxyValidation(xrayURL: xrayURL, config: config, socksPort: socksPort)
-                        return (item.index, item.node, result)
-                    }
-                }
-
-                var collected: [(Int, FlowNode, (ok: Bool, latency: Int?))] = []
-                for await item in group { collected.append(item) }
-                return collected.sorted { $0.0 < $1.0 }
-            }
-
-            for (_, candidate, result) in results where result.ok {
-                var valid = candidate
-                valid.latency = result.latency
-                passed.append(valid)
-            }
-
-            nodeCheckCurrent = upper
-            nodeUsableCount = passed.count
-            if !passed.isEmpty {
-                nodes = passed
-                selectedIndex = min(selectedIndex, max(0, passed.count - 1))
-            }
-            cursor = upper
-        }
-
-        isUpdatingNodes = false
-        if passed.isEmpty {
-            nodeUpdateMessage = "更新失败：无可用节点"
-            nodeUsableCount = 0
-            return false
-        }
-
-        nodes = passed
-        selectedIndex = min(selectedIndex, passed.count - 1)
-        nodeCheckCurrent = candidates.count
-        nodeUsableCount = passed.count
-        nodeUpdateMessage = "更新成功 · \(passed.count)/\(candidates.count) 可用 · \(Self.shortTime())"
-        Self.saveCachedValidNodes(passed)
-        return true
-    }
-
 
     nonisolated private static func forceStop(process: Process) {
         guard process.isRunning else { return }
@@ -258,6 +105,136 @@ final class AppState: ObservableObject {
         guard let data = try? Data(contentsOf: cacheURL()),
               let envelope = try? JSONDecoder().decode(FlowNodeEnvelope.self, from: data) else { return nil }
         return envelope.nodes
+    }
+
+    @discardableResult
+    func importVLESSLink(_ rawLink: String) throws -> FlowNode {
+        let trimmed = rawLink.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let components = URLComponents(string: trimmed),
+              components.scheme?.lowercased() == "vless",
+              let host = components.host,
+              let port = components.port,
+              let uuid = components.user,
+              !host.isEmpty,
+              !uuid.isEmpty else {
+            throw LocalNodeImportError.invalidLink
+        }
+
+        let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+        guard query["encryption"] == "none" else {
+            throw LocalNodeImportError.unsupportedEncryption
+        }
+
+        let transport = query["type"]?.lowercased() ?? "tcp"
+        guard transport == "tcp" else {
+            throw LocalNodeImportError.unsupportedTransport(transport)
+        }
+
+        let security = query["security"]?.lowercased() ?? "none"
+        guard security == "reality" else {
+            throw LocalNodeImportError.unsupportedSecurity(security)
+        }
+
+        guard let sni = query["sni"], !sni.isEmpty,
+              let publicKey = query["pbk"], !publicKey.isEmpty else {
+            throw LocalNodeImportError.missingRealityParameters
+        }
+
+        let displayName = components.percentEncodedFragment?
+            .removingPercentEncoding?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = (displayName?.isEmpty == false ? displayName! : "\(host):\(port)")
+        let flag = name.localizedCaseInsensitiveContains("us") ? "🇺🇸" : "🌐"
+        let node = FlowNode(
+            flag: flag,
+            name: name,
+            host: host,
+            port: port,
+            protocolType: "vless",
+            uuid: uuid,
+            flow: query["flow"]?.isEmpty == false ? query["flow"] : nil,
+            sni: sni,
+            fingerprint: query["fp"]?.isEmpty == false ? query["fp"]! : "chrome",
+            publicKey: publicKey,
+            shortId: query["sid"]?.isEmpty == false ? query["sid"] : nil,
+            spiderX: query["spx"]?.isEmpty == false ? query["spx"] : nil,
+            transport: transport,
+            security: security,
+            source: "local-import",
+            rawLink: trimmed,
+            latency: nil
+        )
+
+        var current = nodes ?? []
+        if let existing = current.firstIndex(where: { $0.host == node.host && $0.port == node.port && $0.uuid == node.uuid }) {
+            current[existing] = node
+            selectedIndex = existing
+            nodeUpdateMessage = "已更新本机链接"
+        } else {
+            current.append(node)
+            selectedIndex = current.count - 1
+            nodeUpdateMessage = "已导入到本机 · \(current.count) 个节点"
+        }
+        nodes = current
+        Self.saveCachedValidNodes(current)
+        return node
+    }
+
+    func deleteNode(at index: Int) {
+        guard var current = nodes, current.indices.contains(index) else { return }
+        let node = current[index]
+        if isConnected, activeNode?.id == node.id {
+            disconnect()
+        }
+        current.remove(at: index)
+        nodes = current
+        selectedIndex = max(0, min(selectedIndex, max(0, current.count - 1)))
+        nodeUpdateMessage = current.isEmpty ? "本机节点库为空" : "已从本机移除 · \(current.count) 个节点"
+        Self.saveCachedValidNodes(current)
+    }
+
+    func persistLocalNodes() {
+        Self.saveCachedValidNodes(nodes ?? [])
+    }
+
+    func exportableVLESSLinks() -> [String] {
+        (nodes ?? []).compactMap { node in
+            if let rawLink = node.rawLink?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !rawLink.isEmpty {
+                return rawLink
+            }
+            guard node.protocolType.lowercased() == "vless",
+                  !node.uuid.isEmpty,
+                  !node.host.isEmpty,
+                  node.port > 0,
+                  !node.sni.isEmpty,
+                  let publicKey = node.publicKey,
+                  !publicKey.isEmpty else { return nil }
+
+            var components = URLComponents()
+            components.scheme = "vless"
+            components.user = node.uuid
+            components.host = node.host
+            components.port = node.port
+            var queryItems = [
+                URLQueryItem(name: "encryption", value: "none"),
+                URLQueryItem(name: "flow", value: node.flow ?? "xtls-rprx-vision"),
+                URLQueryItem(name: "security", value: node.security ?? "reality"),
+                URLQueryItem(name: "sni", value: node.sni),
+                URLQueryItem(name: "fp", value: node.fingerprint),
+                URLQueryItem(name: "pbk", value: publicKey),
+                URLQueryItem(name: "type", value: node.transport ?? "tcp")
+            ]
+            if let shortId = node.shortId, !shortId.isEmpty {
+                queryItems.append(URLQueryItem(name: "sid", value: shortId))
+            }
+            if let spiderX = node.spiderX, !spiderX.isEmpty {
+                queryItems.append(URLQueryItem(name: "spx", value: spiderX))
+            }
+            components.queryItems = queryItems
+            components.fragment = node.name
+            return components.string
+        }
     }
 
     private func generateValidationConfig(node: FlowNode, socksPort: Int) -> String {
@@ -1005,6 +982,29 @@ final class AppState: ObservableObject {
             "settings": settings,
             "streamSettings": streamSettings
         ]
+    }
+}
+
+enum LocalNodeImportError: LocalizedError {
+    case invalidLink
+    case unsupportedEncryption
+    case unsupportedTransport(String)
+    case unsupportedSecurity(String)
+    case missingRealityParameters
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidLink:
+            return "这不是完整的 VLESS 链接。"
+        case .unsupportedEncryption:
+            return "仅支持 encryption=none 的 VLESS 链接。"
+        case .unsupportedTransport(let transport):
+            return "当前仅支持 TCP 传输，收到：\(transport)。"
+        case .unsupportedSecurity(let security):
+            return "当前仅支持 Reality 安全协议，收到：\(security)。"
+        case .missingRealityParameters:
+            return "Reality 链接缺少 SNI 或公钥参数。"
+        }
     }
 }
 
